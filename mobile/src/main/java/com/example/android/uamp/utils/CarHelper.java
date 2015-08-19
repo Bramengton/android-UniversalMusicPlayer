@@ -39,13 +39,8 @@ public class CarHelper {
         return AUTO_APP_PACKAGE_NAME.equals(packageName);
     }
 
-    public static void setSlotReservationFlags(Bundle extras, boolean reservePlayingQueueSlot,
+    public static void setSlotReservationFlags(Bundle extras,
           boolean reserveSkipToNextSlot, boolean reserveSkipToPrevSlot) {
-        if (reservePlayingQueueSlot) {
-            extras.putBoolean(SLOT_RESERVATION_QUEUE, true);
-        } else {
-            extras.remove(SLOT_RESERVATION_QUEUE);
-        }
         if (reserveSkipToPrevSlot) {
             extras.putBoolean(SLOT_RESERVATION_SKIP_TO_PREV, true);
         } else {
@@ -55,6 +50,14 @@ public class CarHelper {
             extras.putBoolean(SLOT_RESERVATION_SKIP_TO_NEXT, true);
         } else {
             extras.remove(SLOT_RESERVATION_SKIP_TO_NEXT);
+        }
+    }
+
+    public static void setReservePlayingQueueSlot(Bundle extras, boolean reservePlayingQueueSlot) {
+        if (reservePlayingQueueSlot) {
+            extras.putBoolean(SLOT_RESERVATION_QUEUE, true);
+        } else {
+            extras.remove(SLOT_RESERVATION_QUEUE);
         }
     }
 

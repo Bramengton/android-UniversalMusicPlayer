@@ -39,6 +39,8 @@ import com.example.android.uamp.AlbumArtCache;
 import com.example.android.uamp.MusicService;
 import com.example.android.uamp.R;
 import com.example.android.uamp.utils.LogHelper;
+import com.example.android.uamp.utils.MediaControlConstants;
+import com.example.android.uamp.utils.MediaControlHelper;
 import com.google.android.libraries.cast.companionlibrary.utils.Utils;
 
 import java.util.concurrent.Executors;
@@ -382,9 +384,12 @@ public class FullScreenPlayerActivity extends ActionBarCastActivity {
                 LogHelper.d(TAG, "Unhandled state ", state.getState());
         }
 
-        mSkipNext.setVisibility((state.getActions() & PlaybackState.ACTION_SKIP_TO_NEXT) == 0
+        mSkipPrev.setImageResource(MediaControlHelper.getSkipToPreviousIcon(state));
+        mSkipNext.setImageResource(MediaControlHelper.getSkipToNextIcon(state));
+
+        mSkipNext.setVisibility((state.getActions() & MediaControlConstants.ACTION_SKIP_TO_NEXT) == 0
             ? INVISIBLE : VISIBLE );
-        mSkipPrev.setVisibility((state.getActions() & PlaybackState.ACTION_SKIP_TO_PREVIOUS) == 0
+        mSkipPrev.setVisibility((state.getActions() & MediaControlConstants.ACTION_SKIP_TO_PREVIOUS) == 0
             ? INVISIBLE : VISIBLE );
     }
 

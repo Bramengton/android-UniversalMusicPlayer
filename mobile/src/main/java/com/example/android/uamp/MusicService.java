@@ -35,11 +35,14 @@ import android.service.media.MediaBrowserService;
 import android.support.annotation.NonNull;
 import android.support.v7.media.MediaRouter;
 import android.text.TextUtils;
+import android.view.KeyEvent;
 
 import com.example.android.uamp.model.MusicProvider;
 import com.example.android.uamp.ui.NowPlayingActivity;
 import com.example.android.uamp.utils.CarHelper;
 import com.example.android.uamp.utils.LogHelper;
+import com.example.android.uamp.utils.MediaControlConstants;
+import com.example.android.uamp.utils.MediaControlHelper;
 import com.example.android.uamp.utils.MediaIDHelper;
 import com.example.android.uamp.utils.QueueHelper;
 import com.example.android.uamp.utils.WearHelper;
@@ -213,9 +216,11 @@ public class MusicService extends MediaBrowserService implements Playback.Callba
         mSession.setSessionActivity(pi);
 
         mSessionExtras = new Bundle();
-        CarHelper.setSlotReservationFlags(mSessionExtras, true, true, true);
-        WearHelper.setSlotReservationFlags(mSessionExtras, true, true);
         WearHelper.setUseBackgroundFromTheme(mSessionExtras, true);
+        CarHelper.setReservePlayingQueueSlot(mSessionExtras, true);
+
+        MediaControlHelper.setSlotReservationFlags(mSessionExtras, true, true);
+        MediaControlHelper.updateGlobalSlotReservationFlags(mSessionExtras, getAvailableActions());
         mSession.setExtras(mSessionExtras);
 
         updatePlaybackState(null);
@@ -386,6 +391,40 @@ public class MusicService extends MediaBrowserService implements Playback.Callba
     }
 
     private final class MediaSessionCallback extends MediaSession.Callback {
+
+        @Override
+        public boolean onMediaButtonEvent(Intent mediaButtonIntent) {
+            if (mSession != null
+                    && Intent.ACTION_MEDIA_BUTTON.equals(mediaButtonIntent.getAction())) {
+                KeyEvent ke = mediaButtonIntent.getParcelableExtra(Intent.EXTRA_KEY_EVENT);
+                if (ke != null && ke.getAction() == KeyEvent.ACTION_DOWN) {
+                    PlaybackState state = mSession.getController().getPlaybackState();
+                    long validActions = state == null ? 0 : state.getActions();
+                    switch (ke.getKeyCode()) {
+                        case KeyEvent.KEYCODE_MEDIA_NEXT:
+                            if ((validActions & MediaControlConstants.ACTION_SKIP_TO_NEXT) != 0) {
+                                onSkipToNext();
+                                return true;
+                            }
+                            // Note: If PlaybackState.ACTION_SKIP_TO_NEXT is in validActions,
+                            // then this key event will be handled by the call to
+                            // super.onMediaButtonEvent().
+                            break;
+                        case KeyEvent.KEYCODE_MEDIA_PREVIOUS:
+                            if ((validActions & MediaControlConstants.ACTION_SKIP_TO_PREVIOUS) != 0) {
+                                onSkipToPrevious();
+                                return true;
+                            }
+                            // Note: If PlaybackState.ACTION_SKIP_TO_PREVIOUS is in validActions,
+                            // then this key event will be handled by the call to
+                            // super.onMediaButtonEvent().
+                            break;
+                    }
+                }
+            }
+            return super.onMediaButtonEvent(mediaButtonIntent);
+        }
+
         @Override
         public void onPlay() {
             LogHelper.d(TAG, "play");
@@ -512,6 +551,12 @@ public class MusicService extends MediaBrowserService implements Playback.Callba
                 // playback state needs to be updated because the "Favorite" icon on the
                 // custom action will change to reflect the new favorite state.
                 updatePlaybackState(null);
+            } else if (MediaControlConstants.CUSTOM_ACTION_SKIP_TO_PREVIOUS.equals(action)) {
+                LogHelper.i(TAG, "onCustomAction: skip to previous");
+                onSkipToPrevious();
+            } else if (MediaControlConstants.CUSTOM_ACTION_SKIP_TO_NEXT.equals(action)) {
+                LogHelper.i(TAG, "onCustomAction: skip to next");
+                onSkipToNext();
             } else {
                 LogHelper.e(TAG, "Unsupported action: ", action);
             }
@@ -642,16 +687,13 @@ public class MusicService extends MediaBrowserService implements Playback.Callba
                     MediaSession.QueueItem queueItem = mPlayingQueue.get(mCurrentIndexOnQueue);
                     MediaMetadata track = mMusicProvider.getMusic(trackId);
                     track = new MediaMetadata.Builder(track)
-
                         // set high resolution bitmap in METADATA_KEY_ALBUM_ART. This is used, for
                         // example, on the lockscreen background when the media session is active.
                         .putBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART, bitmap)
-
                         // set small version of the album art in the DISPLAY_ICON. This is used on
                         // the MediaDescription and thus it should be small to be serialized if
                         // necessary..
                         .putBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON, icon)
-
                         .build();
 
                     mMusicProvider.updateMusic(trackId, track);
@@ -720,6 +762,30 @@ public class MusicService extends MediaBrowserService implements Playback.Callba
                     musicId, " current favorite=", mMusicProvider.isFavorite(musicId));
             Bundle customActionExtras = new Bundle();
             WearHelper.setShowCustomActionOnWear(customActionExtras, true);
+
+            /* Replace standard actions with functionally equivalent custom actions. */
+            long availableActions = getAvailableActions();
+            MediaControlHelper.updateGlobalSlotReservationFlags(mSessionExtras, availableActions);
+            mSession.setExtras(mSessionExtras);
+
+            // Default icons.
+            int prevIcon = R.drawable.lb_ic_skip_previous;
+            int nextIcon = R.drawable.lb_ic_skip_next;
+
+            if (MediaControlHelper.isUsingCustomPreviousAction(availableActions)) {
+                stateBuilder.addCustomAction(new PlaybackState.CustomAction.Builder(
+                        MediaControlConstants.CUSTOM_ACTION_SKIP_TO_PREVIOUS, getString(R.string.skip_prev), prevIcon)
+                        .setExtras(customActionExtras)
+                        .build());
+            }
+            if (MediaControlHelper.isUsingCustomNextAction(availableActions)) {
+                stateBuilder.addCustomAction(new PlaybackState.CustomAction.Builder(
+                        MediaControlConstants.CUSTOM_ACTION_SKIP_TO_NEXT, getString(R.string.skip_next), nextIcon)
+                        .setExtras(customActionExtras)
+                        .build());
+            }
+            /* End of replacing standard actions. */
+
             stateBuilder.addCustomAction(new PlaybackState.CustomAction.Builder(
                     CUSTOM_ACTION_THUMBS_UP, getString(R.string.favorite), favoriteIcon)
                     .setExtras(customActionExtras)
@@ -737,10 +803,10 @@ public class MusicService extends MediaBrowserService implements Playback.Callba
             actions |= PlaybackState.ACTION_PAUSE;
         }
         if (mCurrentIndexOnQueue > 0) {
-            actions |= PlaybackState.ACTION_SKIP_TO_PREVIOUS;
+            actions |= MediaControlConstants.ACTION_SKIP_TO_PREVIOUS;
         }
         if (mCurrentIndexOnQueue < mPlayingQueue.size() - 1) {
-            actions |= PlaybackState.ACTION_SKIP_TO_NEXT;
+            actions |= MediaControlConstants.ACTION_SKIP_TO_NEXT;
         }
         return actions;
     }

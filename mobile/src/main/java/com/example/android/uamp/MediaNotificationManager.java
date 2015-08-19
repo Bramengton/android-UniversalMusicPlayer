@@ -35,6 +35,8 @@ import android.support.annotation.NonNull;
 
 import com.example.android.uamp.ui.MusicPlayerActivity;
 import com.example.android.uamp.utils.LogHelper;
+import com.example.android.uamp.utils.MediaControlConstants;
+import com.example.android.uamp.utils.MediaControlHelper;
 import com.example.android.uamp.utils.ResourceHelper;
 
 /**
@@ -252,8 +254,8 @@ public class MediaNotificationManager extends BroadcastReceiver {
         int playPauseButtonPosition = 0;
 
         // If skip to previous action is enabled
-        if ((mPlaybackState.getActions() & PlaybackState.ACTION_SKIP_TO_PREVIOUS) != 0) {
-            notificationBuilder.addAction(R.drawable.ic_skip_previous_white_24dp,
+        if ((mPlaybackState.getActions() & MediaControlConstants.ACTION_SKIP_TO_PREVIOUS) != 0) {
+            notificationBuilder.addAction(MediaControlHelper.getSkipToPreviousIcon(mPlaybackState),
                         mService.getString(R.string.label_previous), mPreviousIntent);
 
             // If there is a "skip to previous" button, the play/pause button will
@@ -266,8 +268,8 @@ public class MediaNotificationManager extends BroadcastReceiver {
         addPlayPauseAction(notificationBuilder);
 
         // If skip to next action is enabled
-        if ((mPlaybackState.getActions() & PlaybackState.ACTION_SKIP_TO_NEXT) != 0) {
-            notificationBuilder.addAction(R.drawable.ic_skip_next_white_24dp,
+        if ((mPlaybackState.getActions() & MediaControlConstants.ACTION_SKIP_TO_NEXT) != 0) {
+            notificationBuilder.addAction(MediaControlHelper.getSkipToNextIcon(mPlaybackState),
                 mService.getString(R.string.label_next), mNextIntent);
         }
 
