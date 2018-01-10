@@ -392,6 +392,15 @@ public class MusicService extends MediaBrowserServiceCompat implements
     @Override
     public void onPlaybackStateUpdated(PlaybackStateCompat newState) {
         mSession.setPlaybackState(newState);
+        String mediaId = mPlaybackManager.getPlayback().getCurrentMediaId();
+        if (mediaId != null) {
+            Context context = getApplicationContext();
+            Intent intent = new Intent(context, NowPlayingActivity.class);
+            intent.putExtra(NowPlayingActivity.MEDIA_ID_EXTRA, mediaId);
+            PendingIntent pi = PendingIntent.getActivity(context, 99 /*request code*/,
+                    intent, PendingIntent.FLAG_UPDATE_CURRENT);
+            mSession.setSessionActivity(pi);
+        }
     }
 
     private void registerCarConnectionReceiver() {

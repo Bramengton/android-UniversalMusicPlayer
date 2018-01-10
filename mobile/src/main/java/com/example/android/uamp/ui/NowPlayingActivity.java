@@ -20,6 +20,7 @@ import android.app.UiModeManager;
 import android.content.Intent;
 import android.content.res.Configuration;
 import android.os.Bundle;
+import android.util.Log;
 
 import com.example.android.uamp.ui.tv.TvPlaybackActivity;
 import com.example.android.uamp.utils.LogHelper;
@@ -33,6 +34,7 @@ import com.example.android.uamp.utils.LogHelper;
 public class NowPlayingActivity extends Activity {
 
     private static final String TAG = LogHelper.makeLogTag(NowPlayingActivity.class);
+    public static final String MEDIA_ID_EXTRA = "MEDIA_ID_EXTRA";
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -46,6 +48,19 @@ public class NowPlayingActivity extends Activity {
         } else {
             LogHelper.d(TAG, "Running on a non-TV Device");
             newIntent = new Intent(this, MusicPlayerActivity.class);
+        }
+        Intent intent = getIntent();
+        String mediaId = null;
+        if (intent != null) {
+            Bundle extras = intent.getExtras();
+            if (extras != null) {
+                mediaId = extras.getString(MEDIA_ID_EXTRA);
+            }
+        }
+        if (mediaId != null) {
+            Log.d(TAG, "NowPlayingActivity launched with mediaId " + mediaId);
+        } else {
+            Log.d(TAG, "NowPlayingActivity launched with null mediaId");
         }
         startActivity(newIntent);
         finish();
